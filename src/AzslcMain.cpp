@@ -307,8 +307,17 @@ int main(int argc, const char* argv[])
     std::string output;
     cli.add_option("-o", output, "Output file (writes to stdout if omitted).");
 
+    bool useSpaces = false;
+    cli.add_flag("--use-spaces", useSpaces, "Use a logical space index per SRG.");
+    
+    bool useUnboundedSpaces = false;
+    cli.add_flag("--use-unbounded-spaces", useUnboundedSpaces, "Use a logical space index per unbounded array.");
+    
+    int firstUnboundedSpace = AZ::ShaderCompiler::DefaultFirstUnboundedSpace;
+    cli.add_flag("--first-unbounded-space", firstUnboundedSpace, "If use-unbounded-spaces is true, this is the space used for the first unbounded array.");
+
     bool uniqueIdx = false;
-    cli.add_flag("--unique-idx", uniqueIdx, "Use unique indices for all registers. e.g. b0, t0, u0, s0 becomes b0, t1, u2, s3. Use on platforms that don't differentiate registers by resource type.");
+    cli.add_flag("--unique-idx", uniqueIdx, "Use unique indices for all registers. e.g. b0, t0, u0, s0 becomes b0, t1, u2, s3.");
 
     bool cbBody = false;
     cli.add_flag("--cb-body", cbBody, "Emit ConstantBuffer body rather than using <T>.");
@@ -338,9 +347,7 @@ int main(int argc, const char* argv[])
     cli.add_flag("--pack-opengl", packOpenGL, "Pack buffers using strict OpenGL packing rules (Vector-strict std140 for uniforms and std430 for storage buffers).");
 
     std::vector<std::string> namespaces;
-    cli.add_option("--namespace", namespaces, 
-        "Activate an attribute namespace. May be used multiple times to activate multiple namespaces. "
-        "Activating a namespace may also activate corresponding API-specific features, like dx for DirectX 12, vk for Vulkan, and mt for Metal.");
+    cli.add_option("--namespace", namespaces, "The list of comma-separated namespaces (no whitespace) indicates which attribute namespaces are active.");
 
     bool ia = false;
     cli.add_flag("--ia", ia, "Output a list of vs entries with their Input Assembler layouts *and* a list of CS entries and their numthreads.");
@@ -524,19 +531,23 @@ int main(int argc, const char* argv[])
             // Enable attribute namespaces
             std::for_each(namespaces.begin(), namespaces.end(),
                 [&](const string& space) { ir.AddAttributeNamespaceFilter(space); });
-
-            UnboundedArraysValidator::Options unboundedArraysValidationOptions = { uniqueIdx };
-            if (*maxSpacesOpt)
-            {
-                unboundedArraysValidationOptions.m_maxSpaces = maxSpaces;
-            }
+            
+            UnboundedArraysValidator::Options unboundedArraysValidationOptions;
+            unboundedArraysValidationOptions.m_useSpacesEnabled = useSpaces;
+            unboundedArraysValidationOptions.m_useUniqueIndicesEnabled = uniqueIdx;
+            unboundedArraysValidationOptions.m_useUnboundedSpacesEnabled = useUnboundedSpaces;
+            unboundedArraysValidationOptions.m_firstUnboundedSpace = firstUnboundedSpace;
+            unboundedArraysValidationOptions.m_maxSpaces = maxSpaces;
             ir.m_sema.m_unboundedArraysValidator.SetOptions(unboundedArraysValidationOptions);
 
             // semantic logic and validation
             walker.walk(&semanticListener, tree);
 
             Options emitOptions;
+            emitOptions.m_useLogicalSpaces = useSpaces;
             emitOptions.m_useUniqueIndices = uniqueIdx;
+            emitOptions.m_useUnboundedSpacesEnabled = useUnboundedSpaces;
+            emitOptions.m_firstUnboundedSpace = firstUnboundedSpace;
             emitOptions.m_emitConstantBufferBody = cbBody;
             emitOptions.m_emitRootSig = rootSig;
             emitOptions.m_padRootConstantCB = padRootConst;

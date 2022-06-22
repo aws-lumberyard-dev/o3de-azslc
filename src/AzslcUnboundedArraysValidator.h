@@ -20,6 +20,15 @@ namespace AZ::ShaderCompiler
 
         struct Options
         {
+            //! Takes the value of --use-spaces command line option.
+            //! When false, every SRG uses space0 so only one unbounded array of each type (b, t, u, s) can be declared
+            //! across all SRGs.
+            //! When true, each SRG will use a different register space so it can have a its own unique set of unbounded arrays for b, t, u, s.
+            bool m_useSpacesEnabled = false;
+            //! Takes the value of --use-unbounded-spaces command line option.
+            //! When false, each unbounded array will use the same register space the SRG that contains it.
+            //! When true, each unbounded array will use a unique register space.
+            bool m_useUnboundedSpacesEnabled = false;
             //! Takes the value of --unique-idx command line option.
             //! When false each register resource type b, t, u, s can have its own unbounded array per register space.
             //! When true only one of b, t, u, s can have the unbounded array.
@@ -27,6 +36,10 @@ namespace AZ::ShaderCompiler
             //! Takes the value of --max-spaces
             //! Max number of register spaces space0, space1, space2, ... space<m_optionMaxSpaces - 1>
             uint32_t m_maxSpaces = std::numeric_limits<uint32_t>::max();
+            //! Takes the value of --first-unbounded-space
+            //! The first register space to use for unbounded arrays, if m_useUnboundedSpacesEnabled is true.
+            //! e.g. spaceN, spaceN+1, spaceN+2...
+            uint32_t m_firstUnboundedSpace = DefaultFirstUnboundedSpace;
         };
 
         //! asserts if at least one option has an invalid value.
@@ -44,13 +57,16 @@ namespace AZ::ShaderCompiler
         //! }
         //! If it returns false, *errorMessage will have the details.
         //! param isUnboundedArray If true the field is being declared as "m_var[]" instead if "m_var".
-        bool CheckFieldCanBeAddedToSrg(bool isUnboundedArray, const IdentifierUID& srgUid, SRGInfo& srgInfo, const IdentifierUID& varUid, const VarInfo& varInfo, TypeClass typeClass,
+        bool CheckFieldCanBeAddedToSrg(bool isUnboundedArray, const IdentifierUID& srgUid, const IdentifierUID& varUid, const VarInfo& varInfo, TypeClass typeClass,
             string* errorMessage = nullptr);
 
     private:
+
+        using SpaceIndex = uint32_t; // represents register space0, space1, ...
+
         //! Helper for CheckFieldCanBeAddedToSrg. Only called if @varUid was declared as an unbounded array.
         //! If it returns false, *errorMessage will have the details.
-        bool CheckUnboundedArrayFieldCanBeAddedToSrg(const IdentifierUID& srgUid, SRGInfo& srgInfo, const IdentifierUID& varUid, const VarInfo& varInfo, TypeClass typeClass,
+        bool CheckUnboundedArrayFieldCanBeAddedToSrg(const IdentifierUID& srgUid, const IdentifierUID& varUid, const VarInfo& varInfo, TypeClass typeClass,
             string* errorMessage = nullptr);
 
         //! When this function is called, it is guaranteed that varUid refers to a variable
@@ -60,11 +76,16 @@ namespace AZ::ShaderCompiler
         //! A variable like "Texture2D m_var;" is a resource that can be bound to a "tX" register. 
         bool CheckResourceCanBeAddedToSrgWhenUniqueIndicesIsEnabled(const IdentifierUID& srgUid, const IdentifierUID& varUid, string* errorMessage = nullptr) const;
 
+        bool CheckResourceNotBlockedByUnboundedArray(UnboundedArraysValidator::SpaceIndex spaceIndex, const IdentifierUID& varUid, const ExtendedTypeInfo& varTypeInfo, string* errorMessage);
+
         IdentifierUID GetFirstUnboundedArrayFromSrg(const IdentifierUID& srgUid) const;
 
-        using SpaceIndex = uint32_t; // represents register space0, space1, ...
+        IdentifierUID GetFirstUnboundedArrayAcrossAllSrgs() const;
 
         //! Returns the space index that corresponds to the given SRG.
+        //! Calculating the correct space index depends on the commmand
+        //! line options --use-spaces (Options.m_useSpacesEnabled), and
+        //! --max-spaces (Options.m_maxSpaces).
         //! The calculated space index is stored in m_srgToSpaceIndex the first time
         //! this function is called for any given SRG.
         SpaceIndex GetSpaceIndexForSrg(const IdentifierUID& srgUid);
@@ -82,7 +103,7 @@ namespace AZ::ShaderCompiler
         //! type, therefore we can detect if the user is trying to declare another resource after an unbounded
         //! array, which is forbidden.
         //! The size of this array is managed in GetSpaceIndexForSrg().
-        vector<ArrayOfUnboundedUids> m_unboundedUidsPerSpace;
+        vector<ArrayOfUnboundedUids> m_unboundedUidsPerSpace; // TODO: make this a map in case it stores the unbounded overflow space IDs.
 
     };
 } // namespace AZ::ShaderCompiler

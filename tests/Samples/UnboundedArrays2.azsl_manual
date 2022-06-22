@@ -22,3 +22,14 @@ ShaderResourceGroup SRG1 : slot1
     ConstantBuffer<MyStruct> m_structArraya[]; // b0+, space1006
     ConstantBuffer<MyStruct> m_structArrayb[]; // b0+, space1007
 };
+
+struct PSInput
+{
+	float4 color : COLOR;
+};
+
+float4 PSMain(PSInput input) : SV_TARGET
+{
+    input.color.r = SRG1::m_texSRVa[0].Sample(SRG1::m_samplera[0], float2(0,0)).r;
+	return input.color;
+}

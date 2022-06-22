@@ -24,10 +24,15 @@ namespace AZ::ShaderCompiler
         int m_buffers = -1;
     };
 
+    constexpr const uint32_t DefaultFirstUnboundedSpace = 1000;
+
     //! This structure is typically filled from parsed user settings from the command line
     struct Options
     {
+        bool m_useLogicalSpaces = false;
         bool m_useUniqueIndices = false;
+        bool m_useUnboundedSpacesEnabled = false;
+        uint32_t m_firstUnboundedSpace = DefaultFirstUnboundedSpace;
         bool m_emitConstantBufferBody = false;
         bool m_emitRootSig = false;
         bool m_emitRowMajor = false;     //!< False by default (HLSL standard)

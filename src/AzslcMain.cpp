@@ -338,7 +338,9 @@ int main(int argc, const char* argv[])
     cli.add_flag("--pack-opengl", packOpenGL, "Pack buffers using strict OpenGL packing rules (Vector-strict std140 for uniforms and std430 for storage buffers).");
 
     std::vector<std::string> namespaces;
-    cli.add_option("--namespace", namespaces, "Activate an attribute namespace. May be used multiple times to activate multiple namespaces.");
+    cli.add_option("--namespace", namespaces, 
+        "Activate an attribute namespace. May be used multiple times to activate multiple namespaces. "
+        "Activating a namespace may also activate corresponding API-specific features, like dx for DirectX 12, vk for Vulkan, and mt for Metal.");
 
     bool ia = false;
     cli.add_flag("--ia", ia, "Output a list of vs entries with their Input Assembler layouts *and* a list of CS entries and their numthreads.");
